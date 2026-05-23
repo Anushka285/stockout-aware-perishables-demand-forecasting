@@ -668,6 +668,8 @@ with tab4:
     )
 
     if uploaded is not None:
+
+        # Read uploaded file
         if uploaded.name.endswith(".csv"):
             new_df = pd.read_csv(uploaded)
         else:
@@ -675,6 +677,7 @@ with tab4:
 
         st.success(f"File uploaded successfully: {uploaded.name}")
 
+        # Preview
         st.markdown("### Data Preview")
         st.dataframe(new_df.head(), use_container_width=True)
 
@@ -701,44 +704,112 @@ with tab4:
             </div>
             """, unsafe_allow_html=True)
 
+        # Run forecasts
         if st.button("Run Batch Forecasts", key="run_batch"):
+
             df = new_df.copy()
 
-            if "shelf_life_bucket" in df.columns:
-                df["shelflifebucket"] = df["shelf_life_bucket"]
-            elif "third_category_id" in df.columns:
-                df["shelflifebucket"] = df["third_category_id"].apply(assign_shelf_life)
+            # ---------- Create missing time features ----------
+            if "dt" in df.columns:
+                df["dt"] = pd.to_datetime(df["dt"])
+                df["dayofweek"] = df["dt"].dt.dayofweek
+                df["isweekend"] = df["dayofweek"].isin([5, 6]).astype(int)
+                df["month"] = df["dt"].dt.month
             else:
-                st.error("Need 'shelf_life_bucket' or 'third_category_id' to assign segment.")
+                df["dayofweek"] = 0
+                df["isweekend"] = 0
+                df["month"] = 1
+
+            # ---------- Create shelf-life segment ----------
+            if "third_category_id" in df.columns:
+                df["shelflifebucket"] = df["third_category_id"].apply(assign_shelf_life)
+
+            elif "shelf_life_bucket" in df.columns:
+                df["shelflifebucket"] = df["shelf_life_bucket"]
+
+            else:
+                st.error("Need 'third_category_id' or 'shelf_life_bucket' to assign segment.")
                 st.stop()
 
+            # ---------- Normalize segment names ----------
+            df["shelflifebucket"] = df["shelflifebucket"].replace({
+                "Short_Life": "ShortLife",
+                "Medium_Life": "MediumLife",
+                "Long_Life": "LongLife",
+                "Short Life": "ShortLife",
+                "Medium Life": "MediumLife",
+                "Long Life": "LongLife",
+            })
+
+            # ---------- Create old model flag names ----------
             if "is_censored_day" in df.columns:
                 df["iscensoredday"] = df["is_censored_day"]
+
             if "is_not_stocked" in df.columns:
                 df["isnotstocked"] = df["is_not_stocked"]
 
+            # ---------- Ensure required columns exist ----------
+            required_defaults = {
+                "discount": 0,
+                "holiday_flag": 0,
+                "activity_flag": 0,
+                "precpt": 0,
+                "avg_temperature": 20,
+                "avg_humidity": 50,
+                "avg_wind_level": 1,
+                "stockout_hours": 0,
+                "stock_hour6_22_cnt": 0,
+                "iscensoredday": 0,
+                "isnotstocked": 0,
+            }
+
+            for col, default_val in required_defaults.items():
+                if col not in df.columns:
+                    df[col] = default_val
+
+            # ---------- Prediction columns ----------
             df["obs_pred"] = np.nan
             df["latent_pred"] = np.nan
 
+            # ---------- Run segment models ----------
             for seg in segments:
-                rows = df["shelflifebucket"] == seg
-                if rows.any():
-                    X_seg = df.loc[rows, final_features].fillna(0)
-                    df.loc[rows, "obs_pred"] = obs_models[seg].predict(X_seg)
-                    df.loc[rows, "latent_pred"] = latent_models[seg].predict(X_seg)
 
-            df["obs_pred"] = df["obs_pred"].clip(lower=0)
-            df["latent_pred"] = df["latent_pred"].clip(lower=0)
-            df["demand_gap"] = df["latent_pred"] - df["obs_pred"]
+                rows = df["shelflifebucket"] == seg
+
+                if rows.any():
+
+                    X_seg = df.loc[rows, final_features].fillna(0)
+
+                    df.loc[rows, "obs_pred"] = (
+                        obs_models[seg]
+                        .predict(X_seg)
+                        .clip(min=0)
+                    )
+
+                    df.loc[rows, "latent_pred"] = (
+                        latent_models[seg]
+                        .predict(X_seg)
+                        .clip(min=0)
+                    )
+
+            # ---------- Final cleanup ----------
+            df["obs_pred"] = df["obs_pred"].fillna(0)
+            df["latent_pred"] = df["latent_pred"].fillna(0)
+
+            df["demand_gap"] = (
+                df["latent_pred"] - df["obs_pred"]
+            ).clip(lower=0)
 
             st.success("Batch forecasts generated successfully.")
 
+            # ---------- Output preview ----------
             st.markdown("### Forecast Output Preview")
+
             st.dataframe(df.head(), use_container_width=True)
 
-            avg_obs = df["obs_pred"].mean()
-            avg_latent = df["latent_pred"].mean()
-            avg_gap = df["demand_gap"].mean()
+            avg_obs = float(df["obs_pred"].mean())
+            avg_latent = float(df["latent_pred"].mean())
+            avg_gap = float(df["demand_gap"].mean())
 
             r1, r2, r3 = st.columns(3)
 
@@ -769,10 +840,11 @@ with tab4:
                 </div>
                 """, unsafe_allow_html=True)
 
+            # ---------- Download ----------
             csv = df.to_csv(index=False).encode("utf-8")
 
             st.download_button(
-                "Download Forecast Results as CSV",
+                "⬇️ Download Forecast Results as CSV",
                 data=csv,
                 file_name="batch_predictions.csv",
                 mime="text/csv",
