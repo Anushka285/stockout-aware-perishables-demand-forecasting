@@ -77,81 +77,208 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("Perishable Inventory Forecasting – Perishables Demand & Stockouts")
+# CUSTOM CSS
+st.markdown("""
+<style>
+.main {
+    background: #f8fafc;
+}
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    max-width: 1200px;
+}
+.hero {
+    background: linear-gradient(135deg, #0f172a, #1e3a8a);
+    padding: 36px;
+    border-radius: 24px;
+    color: white;
+    margin-bottom: 25px;
+}
+.hero h1 {
+    font-size: 42px;
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+.hero p {
+    font-size: 18px;
+    color: #dbeafe;
+}
+.metric-card {
+    background: white;
+    padding: 22px;
+    border-radius: 18px;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.08);
+    border-left: 6px solid #2563eb;
+}
+.small-text {
+    color: #64748b;
+    font-size: 15px;
+}
 
-st.markdown(
-    """
-This interactive dashboard uses **shelf‑life segmented LightGBM models** on FreshRetailNet‑50K to forecast:
+/* Sidebar styling */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #f8fafc 0%, #e0f2fe 100%);
+    border-right: 1px solid #cbd5e1;
+}
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    color: #0f172a;
+    font-weight: 800;
+}
+[data-testid="stSidebar"] label {
+    color: #334155;
+    font-weight: 600;
+    font-size: 13px;
+}
+.sidebar-info {
+    background: white;
+    padding: 14px;
+    border-radius: 14px;
+    border-left: 5px solid #2563eb;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    font-size: 13px;
+    color: #475569;
+    margin-bottom: 12px;
+}
+/* Tabs styling */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 14px;
+    background: white;
+    padding: 10px;
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
 
-- **Observed sales** (censored by stockouts).
-- **Recovered demand** (approximate true demand under full in‑stock conditions).
-"""
-)
+.stTabs [data-baseweb="tab"] {
+    height: 52px;
+    padding-left: 22px;
+    padding-right: 22px;
+    border-radius: 12px;
+    color: #334155;
+    font-weight: 700;
+    background: #f8fafc;
+}
 
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: white !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="hero">
+    <p style="font-size:14px; letter-spacing:1px; text-transform:uppercase; color:#bfdbfe; margin-bottom:8px;">
+        Retail Analytics • Machine Learning • Inventory Optimization
+    </p>
+    <h1>Stockout-Aware Perishable Demand Forecasting</h1>
+    <p>
+    Forecast observed sales and recover hidden customer demand caused by stockouts using
+    shelf-life segmented LightGBM models.
+    </p>
+    <div style="margin-top:22px;">
+        <span style="background:#dbeafe; color:#1e3a8a; padding:8px 14px; border-radius:999px; margin-right:8px; font-weight:700;">
+            LightGBM
+        </span>
+        <span style="background:#dcfce7; color:#166534; padding:8px 14px; border-radius:999px; margin-right:8px; font-weight:700;">
+            Streamlit
+        </span>
+        <span style="background:#fef3c7; color:#92400e; padding:8px 14px; border-radius:999px; font-weight:700;">
+            CRISP-DM
+        </span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ---------- Sidebar: inputs ----------
 
-st.sidebar.header("Product & Location")
+st.sidebar.markdown("## 🎛️ Forecast Controls")
 
-c1, c2, c3 = st.sidebar.columns(3)
-with c1:
-    city_id = st.number_input("city_id", min_value=0, value=0, step=1)
-with c2:
-    store_id = st.number_input("store_id", min_value=0, value=0, step=1)
-with c3:
-    management_group_id = st.number_input("mgmt_group_id", min_value=0, value=0, step=1)
+st.sidebar.markdown(
+    """
+    <div class="sidebar-info">
+    Simulate demand by changing store, product, weather, promotion, and stockout inputs.
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
-c4, c5, c6, c7 = st.sidebar.columns(4)
-with c4:
-    first_category_id = st.number_input("first_category_id", min_value=0, value=5, step=1)
-with c5:
-    second_category_id = st.number_input("second_category_id", min_value=0, value=6, step=1)
-with c6:
-    third_category_id = st.number_input("third_category_id", min_value=0, value=65, step=1)
-with c7:
-    product_id = st.number_input("product_id", min_value=0, value=38, step=1)
+st.sidebar.markdown("### 📍 Product & Store")
 
-st.sidebar.header("Context & Covariates")
+city_id = st.sidebar.number_input("City ID", min_value=0, value=5, step=1)
+store_id = st.sidebar.number_input("Store ID", min_value=0, value=120, step=1)
 
-date_input = st.sidebar.date_input("Date", value=datetime(2024, 3, 28))
+st.sidebar.markdown("### 🛒 Product Category")
 
-discount = st.sidebar.number_input("discount", min_value=0.0, max_value=5.0, value=1.0, step=0.1)
-holiday_flag = st.sidebar.checkbox("Holiday?", value=False)
-activity_flag = st.sidebar.checkbox("Promotion/Activity?", value=False)
+first_category_id = st.sidebar.number_input("Category Level 1", min_value=0, value=5, step=1)
+second_category_id = st.sidebar.number_input("Category Level 2", min_value=0, value=6, step=1)
+third_category_id = st.sidebar.number_input("Category Level 3", min_value=0, value=120, step=1)
+product_id = st.sidebar.number_input("Product ID", min_value=0, value=250, step=1)
 
-precpt = st.sidebar.number_input("precpt", min_value=0.0, value=1.7, step=0.1)
-avg_temperature = st.sidebar.number_input("avg_temperature", min_value=-10.0, value=15.5, step=0.5)
-avg_humidity = st.sidebar.number_input("avg_humidity", min_value=0.0, max_value=100.0, value=73.5, step=1.0)
-avg_wind_level = st.sidebar.number_input("avg_wind_level", min_value=0.0, value=2.0, step=0.1)
+st.sidebar.markdown("### 🌦️ Demand Conditions")
 
-stockout_hours = st.sidebar.number_input(
-    "stockout_hours (06–22)",
+# Hidden default values (not shown in sidebar)
+management_group_id = 0
+precpt = 1.7
+avg_humidity = 73.5
+avg_wind_level = 2.0
+
+date_input = st.sidebar.date_input("Forecast Date", value=datetime(2024, 3, 28))
+
+discount = st.sidebar.slider("Discount Multiplier", min_value=0.0, max_value=5.0, value=1.0, step=0.1)
+
+holiday_flag = st.sidebar.checkbox("Holiday Effect", value=False)
+activity_flag = st.sidebar.checkbox("Promotion / Campaign Active", value=False)
+
+avg_temperature = st.sidebar.number_input("Average Temperature", min_value=-10.0, value=15.5, step=0.5)
+
+st.sidebar.markdown("### ⚠️ Stockout Signal")
+
+stockout_hours = st.sidebar.slider(
+    "Stockout Hours During Selling Window",
     min_value=0,
     max_value=17,
-    value=0,
+    value=4,
     step=1,
 )
 
-st.sidebar.markdown("---")
-st.sidebar.caption(
-    "Recovered demand estimates demand as if the product had been fully in stock "
-    "during the 06–22 selling window."
+st.sidebar.markdown(
+    """
+    <div class="sidebar-info">
+    Higher stockout hours indicate stronger demand censoring.  
+    The recovered-demand model estimates what customers likely wanted if shelves stayed stocked.
+    </div>
+    """,
+    unsafe_allow_html=True
 )
 
 
 # ---------- Tabs ----------
 
 tab1, tab2, tab3, tab4 = st.tabs(
-    ["🔮 Single forecast", "📊 Segment performance", "📈 Predicted vs observed", "📁 Upload new data"]
+    [
+        "🔮 Single Forecast",
+        "📊 Model Performance",
+        "📈 Sales vs Predictions",
+        "📁 Batch Forecasting"
+    ]
 )
 
 
 # ---------- Tab 1: single forecast ----------
 
 with tab1:
-    st.subheader("Single‑day forecast for a product & store")
+    st.subheader("🔮 Single-Day Forecast")
 
-    if st.button("Predict", key="predict_single"):
+    st.markdown(
+        """
+        Use this section to simulate demand for one product-store-day scenario.  
+        The model predicts both **observed sales** and **recovered customer demand** after adjusting for stockout effects.
+        """
+    )
+
+    if st.button("Run Forecast", key="predict_single"):
         dt = pd.to_datetime(date_input)
         dayofweek = dt.dayofweek
         isweekend = int(dayofweek in [5, 6])
@@ -159,7 +286,6 @@ with tab1:
 
         shelflifebucket = assign_shelf_life(int(third_category_id))
 
-        # Base row using new names
         row = {
             "city_id": city_id,
             "store_id": store_id,
@@ -169,7 +295,7 @@ with tab1:
             "third_category_id": third_category_id,
             "product_id": product_id,
             "dt": dt,
-            "sale_amount": 0.0,  # placeholder
+            "sale_amount": 0.0,
             "discount": discount,
             "holiday_flag": int(holiday_flag),
             "activity_flag": int(activity_flag),
@@ -188,7 +314,6 @@ with tab1:
             "month": month,
         }
 
-        # Also create the old names expected by models, mapping from the new names
         row["iscensoredday"] = row["is_censored_day"]
         row["isnotstocked"] = row["is_not_stocked"]
 
@@ -197,82 +322,188 @@ with tab1:
         obs_model = obs_models[shelflifebucket]
         latent_model = latent_models[shelflifebucket]
 
-        obs_pred = float(obs_model.predict(X)[0])
-        latent_pred = float(latent_model.predict(X)[0])
+        obs_pred = max(0, float(obs_model.predict(X)[0]))
+        latent_pred = max(0, float(latent_model.predict(X)[0]))
+        gap = max(0, latent_pred - obs_pred)
+
+        st.markdown("### Forecast Results")
 
         k1, k2, k3 = st.columns(3)
+
         with k1:
-            st.metric("Observed sales forecast (kg/day)", f"{obs_pred:.2f}")
+            st.markdown(f"""
+            <div class="metric-card">
+                <h4>📦 Observed Sales</h4>
+                <h2>{obs_pred:.2f} kg/day</h2>
+                <p class="small-text">Expected sales recorded by the POS system.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
         with k2:
-            st.metric("Recovered demand forecast (kg/day)", f"{latent_pred:.2f}")
+            st.markdown(f"""
+            <div class="metric-card">
+                <h4>📈 Recovered Demand</h4>
+                <h2>{latent_pred:.2f} kg/day</h2>
+                <p class="small-text">Estimated true customer demand after stockout adjustment.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
         with k3:
-            st.metric("Shelf‑life segment", shelflifebucket)
+            st.markdown(f"""
+            <div class="metric-card">
+                <h4>🧊 Shelf-Life Segment</h4>
+                <h2>{shelflifebucket}</h2>
+                <p class="small-text">Model selected based on product perishability.</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-        st.markdown("### Input summary")
-        st.dataframe(pd.DataFrame([row]))
+        st.markdown(f"""
+        <div class="metric-card" style="margin-top:20px; border-left:6px solid #f97316;">
+            <h4>⚠️ Stockout Demand Gap</h4>
+            <h2>{gap:.2f} kg/day</h2>
+            <p class="small-text">
+            This is the estimated demand hidden by stockouts. A higher gap suggests stronger under-ordering risk.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("### Scenario Inputs Used")
+
+        input_summary = pd.DataFrame([{
+            "City": city_id,
+            "Store": store_id,
+            "Product": product_id,
+            "Category Level 3": third_category_id,
+            "Date": dt.strftime("%Y-%m-%d"),
+            "Discount": discount,
+            "Holiday": "Yes" if holiday_flag else "No",
+            "Promotion": "Yes" if activity_flag else "No",
+            "Stockout Hours": stockout_hours,
+            "Segment": shelflifebucket
+        }])
+
+        st.dataframe(input_summary, use_container_width=True)
+
     else:
-        st.info("Set sidebar inputs and click **Predict** to see forecasts.")
+        st.info("Set sidebar inputs and click **Run Forecast** to generate demand predictions.")
 
 
-# ---------- Tab 2: segment‑level performance ----------
+
+# ---------- Tab 2: segment-level performance ----------
 
 with tab2:
-    st.subheader("Model accuracy by shelf‑life segment")
+    st.subheader("📊 Model Performance by Shelf-Life Segment")
 
     st.markdown(
         """
-Each row summarizes the **LightGBM model trained for that shelf‑life bucket** on the hold‑out set:
-
-- **WAPE** (Weighted Absolute Percentage Error) – business‑friendly error measure.
-- **R²** – variance explained.
-"""
+        This section compares how well the forecasting model performs across different perishability groups.
+        Lower **WAPE** means lower forecast error, while higher **R²** means the model explains more demand variation.
+        """
     )
 
-    st.dataframe(segment_metrics.style.format({"WAPE": "{:.2f}%", "R2": "{:.4f}"}))
+    best_segment = segment_metrics.loc[segment_metrics["R2"].idxmax(), "Segment"]
+    lowest_error_segment = segment_metrics.loc[segment_metrics["WAPE"].idxmin(), "Segment"]
+
+    p1, p2, p3 = st.columns(3)
+
+    with p1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h4>🏆 Best R² Segment</h4>
+            <h2>{best_segment}</h2>
+            <p class="small-text">Highest model fit among shelf-life groups.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with p2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h4>🎯 Lowest WAPE</h4>
+            <h2>{lowest_error_segment}</h2>
+            <p class="small-text">Most accurate segment by business error.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with p3:
+        st.markdown("""
+        <div class="metric-card">
+            <h4>🧠 Model Strategy</h4>
+            <h2>Segmented</h2>
+            <p class="small-text">Separate LightGBM models improve demand learning.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("### Performance Summary")
+
+    display_metrics = segment_metrics.copy()
+    display_metrics["WAPE"] = display_metrics["WAPE"].map(lambda x: f"{x:.2f}%")
+    display_metrics["R²"] = display_metrics["R2"].map(lambda x: f"{x:.4f}")
+    display_metrics = display_metrics[["Segment", "Target", "WAPE", "R²"]]
+
+    st.dataframe(display_metrics, use_container_width=True)
+
+    st.markdown("### Visual Comparison")
 
     col_wape, col_r2 = st.columns(2)
 
     with col_wape:
-        st.markdown("#### WAPE by segment")
+        st.markdown("""
+        <div class="metric-card">
+            <h4>📉 WAPE by Segment</h4>
+            <p class="small-text">Lower WAPE means better forecasting accuracy.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
         st.bar_chart(
             segment_metrics.set_index("Segment")["WAPE"],
             width="stretch",
         )
 
     with col_r2:
-        st.markdown("#### R² by segment")
+        st.markdown("""
+        <div class="metric-card">
+            <h4>📈 R² by Segment</h4>
+            <p class="small-text">Higher R² means better model explanation power.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
         st.bar_chart(
             segment_metrics.set_index("Segment")["R2"],
             width="stretch",
         )
 
-    st.markdown(
-        """
-**Interpretation**:
-
-- **ShortLife** items (highly perishable) are hardest to predict.
-- **MediumLife** items sit in the middle.
-- **LongLife** items are most stable with lowest WAPE and highest R².
-
-This justifies training **separate models per shelf‑life bucket** instead of one global model.
-"""
-    )
-
+    st.markdown("""
+    <div class="metric-card" style="margin-top:20px; border-left:6px solid #16a34a;">
+        <h4>💡 Business Interpretation</h4>
+        <p class="small-text">
+        Long-life products are more stable and easier to forecast, while short-life items are harder because
+        perishability, stockouts, and demand volatility create more noise. This supports using separate
+        shelf-life models instead of one global forecasting model.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ---------- Tab 3: predicted vs observed over time ----------
 
 with tab3:
-    st.subheader("Predicted vs observed sales over time (eval set)")
+    st.subheader("📈 Sales vs Predictions Over Time")
+
+    st.markdown(
+        """
+        This section compares actual observed sales against model-predicted sales for a product-store pair
+        in the evaluation dataset. It also highlights stockout days so viewers can see when demand may have been censored.
+        """
+    )
 
     if eval_df is None:
-        st.warning("Eval holdout parquet not found – time‑series plots are disabled.")
+        st.warning("Eval holdout parquet not found – time-series plots are disabled.")
     elif DATE_COL not in eval_df.columns:
         st.error(f"Date column '{DATE_COL}' not found in eval_holdout.parquet.")
     else:
         eval_df[DATE_COL] = pd.to_datetime(eval_df[DATE_COL])
 
         date_range = st.date_input(
-            "Date range (eval set)",
+            "Select Evaluation Date Range",
             value=(eval_df[DATE_COL].min(), eval_df[DATE_COL].max()),
         )
 
@@ -281,7 +512,7 @@ with tab3:
         else:
             start_date, end_date = date_range
 
-        if st.button("Show time series", key="show_ts"):
+        if st.button("Generate Time-Series View", key="show_ts"):
             mask = (
                 (eval_df["city_id"] == city_id)
                 & (eval_df["store_id"] == store_id)
@@ -289,56 +520,152 @@ with tab3:
                 & (eval_df[DATE_COL] >= pd.to_datetime(start_date))
                 & (eval_df[DATE_COL] <= pd.to_datetime(end_date))
             )
+
             ts = eval_df.loc[mask].copy().sort_values(DATE_COL)
 
             if ts.empty:
-                st.warning("No eval data for this product/store in the selected range.")
-            else:
-                if "shelf_life_bucket" in ts.columns:
-                    ts["shelflifebucket"] = ts["shelf_life_bucket"]
-                else:
-                    ts["shelflifebucket"] = ts["third_category_id"].apply(assign_shelf_life)
+                sample_row = eval_df.sample(1).iloc[0]
 
-                ts["obs_pred"] = np.nan
-                for seg in segments:
-                    rows = ts["shelflifebucket"] == seg
-                    if rows.any():
-                        X_seg = ts.loc[rows, final_features].fillna(0)
-                        ts.loc[rows, "obs_pred"] = obs_models[seg].predict(X_seg)
+                ts = eval_df[
+                    (eval_df["city_id"] == sample_row["city_id"])
+                    & (eval_df["store_id"] == sample_row["store_id"])
+                    & (eval_df["product_id"] == sample_row["product_id"])
+                    & (eval_df[DATE_COL] >= pd.to_datetime(start_date))
+                    & (eval_df[DATE_COL] <= pd.to_datetime(end_date))
+                ].copy().sort_values(DATE_COL)
 
-                chart_df = ts[[DATE_COL, "sale_amount", "obs_pred"]].set_index(DATE_COL)
-                chart_df = chart_df.rename(
-                    columns={"sale_amount": "Observed sales", "obs_pred": "Predicted sales"}
+                st.info(
+                    f"No eval data found for selected inputs, so showing an available sample: "
+                    f"City {sample_row['city_id']}, Store {sample_row['store_id']}, Product {sample_row['product_id']}."
                 )
 
-                st.line_chart(chart_df, width="stretch")
+            if "shelf_life_bucket" in ts.columns:
+                ts["shelflifebucket"] = ts["shelf_life_bucket"]
+            else:
+                ts["shelflifebucket"] = ts["third_category_id"].apply(assign_shelf_life)
 
-                st.markdown("#### Stockout days for this product")
-                if "stockout_hours" in ts.columns:
-                    stockout_days = ts[ts["stockout_hours"] > 0][[DATE_COL, "stockout_hours"]]
-                    if stockout_days.empty:
-                        st.write("No stockouts in this period.")
-                    else:
-                        st.dataframe(stockout_days)
+            ts["obs_pred"] = np.nan
+
+            for seg in segments:
+                rows = ts["shelflifebucket"] == seg
+                if rows.any():
+                    X_seg = ts.loc[rows, final_features].fillna(0)
+                    ts.loc[rows, "obs_pred"] = obs_models[seg].predict(X_seg)
+
+            avg_actual = ts["sale_amount"].mean()
+            avg_predicted = ts["obs_pred"].fillna(0).mean()
+            total_stockout_hours = ts["stockout_hours"].sum() if "stockout_hours" in ts.columns else 0
+
+            c1, c2, c3 = st.columns(3)
+
+            with c1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h4>🧾 Avg. Observed Sales</h4>
+                    <h2>{avg_actual:.2f}</h2>
+                    <p class="small-text">Average sales recorded in the evaluation period.</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with c2:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h4>🤖 Avg. Predicted Sales</h4>
+                    <h2>{avg_predicted:.2f}</h2>
+                    <p class="small-text">Average model forecast for the same period.</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with c3:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h4>⚠️ Stockout Hours</h4>
+                    <h2>{int(total_stockout_hours)}</h2>
+                    <p class="small-text">Total hours where shelves were unavailable.</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("### Sales Trend Comparison")
+
+            ts["obs_pred"] = ts["obs_pred"].fillna(0)
+            chart_df = ts[[DATE_COL, "sale_amount", "obs_pred"]].set_index(DATE_COL)
+            chart_df = chart_df.rename(
+                columns={"sale_amount": "Observed Sales", "obs_pred": "Predicted Sales"}
+            )
+
+            st.line_chart(chart_df, width="stretch")
+
+            st.markdown("### Stockout Events")
+
+            if "stockout_hours" in ts.columns:
+                stockout_days = ts[ts["stockout_hours"] > 0][[DATE_COL, "stockout_hours"]]
+                stockout_days = stockout_days.rename(
+                    columns={DATE_COL: "Date", "stockout_hours": "Stockout Hours"}
+                )
+
+                if stockout_days.empty:
+                    st.success("No stockouts occurred in this selected period.")
                 else:
-                    st.info("Column 'stockout_hours' not present in eval_holdout.parquet.")
+                    st.dataframe(stockout_days, use_container_width=True)
 
+                    st.markdown("""
+                    <div class="metric-card" style="margin-top:20px; border-left:6px solid #f97316;">
+                        <h4>💡 Interpretation</h4>
+                        <p class="small-text">
+                        Stockout days can suppress recorded sales because customers may have wanted to buy the product,
+                        but the product was unavailable. This is why stockout-aware forecasting is important for
+                        replenishment decisions.
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("Column 'stockout_hours' not present in eval_holdout.parquet.")
 
 # ---------- Tab 4: upload new data for batch scoring ----------
 
 with tab4:
-    st.subheader("Upload new daily data for batch prediction")
+    st.subheader("📁 Batch Forecasting for New Data")
 
     st.markdown(
         """
-Upload a CSV or Parquet file with the same columns used in modelling
-(city/store/product, covariates, censoring features).  
-The app will compute **observed sales** and **recovered demand** forecasts
-for each row.
-"""
+        Upload a CSV or Parquet file with the same schema used during model training.  
+        The app will generate **observed sales forecasts** and **recovered demand forecasts** for every row.
+        """
     )
 
-    uploaded = st.file_uploader("Upload CSV or Parquet", type=["csv", "parquet"])
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+        st.markdown("""
+        <div class="metric-card">
+            <h4>📤 Upload</h4>
+            <p class="small-text">Import CSV or Parquet data.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with c2:
+        st.markdown("""
+        <div class="metric-card">
+            <h4>🤖 Score</h4>
+            <p class="small-text">Run segment-specific LightGBM models.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with c3:
+        st.markdown("""
+        <div class="metric-card">
+            <h4>⬇️ Export</h4>
+            <p class="small-text">Download predictions as CSV.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("### Upload New Dataset")
+
+    uploaded = st.file_uploader(
+        "Upload CSV or Parquet file",
+        type=["csv", "parquet"],
+        help="File should include product, store, category, weather, promotion, and stockout fields."
+    )
 
     if uploaded is not None:
         if uploaded.name.endswith(".csv"):
@@ -346,10 +673,35 @@ for each row.
         else:
             new_df = pd.read_parquet(uploaded)
 
-        st.write("Preview of uploaded data:")
-        st.dataframe(new_df.head())
+        st.success(f"File uploaded successfully: {uploaded.name}")
 
-        if st.button("Run batch predictions", key="run_batch"):
+        st.markdown("### Data Preview")
+        st.dataframe(new_df.head(), use_container_width=True)
+
+        row_count = len(new_df)
+        col_count = len(new_df.columns)
+
+        m1, m2 = st.columns(2)
+
+        with m1:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h4>Rows Uploaded</h4>
+                <h2>{row_count:,}</h2>
+                <p class="small-text">Total records available for scoring.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with m2:
+            st.markdown(f"""
+            <div class="metric-card">
+                <h4>Columns Detected</h4>
+                <h2>{col_count}</h2>
+                <p class="small-text">Input variables detected in uploaded file.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        if st.button("Run Batch Forecasts", key="run_batch"):
             df = new_df.copy()
 
             if "shelf_life_bucket" in df.columns:
@@ -360,7 +712,6 @@ for each row.
                 st.error("Need 'shelf_life_bucket' or 'third_category_id' to assign segment.")
                 st.stop()
 
-            # create old flag names if needed
             if "is_censored_day" in df.columns:
                 df["iscensoredday"] = df["is_censored_day"]
             if "is_not_stocked" in df.columns:
@@ -376,12 +727,52 @@ for each row.
                     df.loc[rows, "obs_pred"] = obs_models[seg].predict(X_seg)
                     df.loc[rows, "latent_pred"] = latent_models[seg].predict(X_seg)
 
-            st.success("Batch predictions computed.")
-            st.dataframe(df.head())
+            df["obs_pred"] = df["obs_pred"].clip(lower=0)
+            df["latent_pred"] = df["latent_pred"].clip(lower=0)
+            df["demand_gap"] = df["latent_pred"] - df["obs_pred"]
+
+            st.success("Batch forecasts generated successfully.")
+
+            st.markdown("### Forecast Output Preview")
+            st.dataframe(df.head(), use_container_width=True)
+
+            avg_obs = df["obs_pred"].mean()
+            avg_latent = df["latent_pred"].mean()
+            avg_gap = df["demand_gap"].mean()
+
+            r1, r2, r3 = st.columns(3)
+
+            with r1:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h4>📦 Avg. Observed Forecast</h4>
+                    <h2>{avg_obs:.2f}</h2>
+                    <p class="small-text">Average predicted POS-recorded sales.</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with r2:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h4>📈 Avg. Recovered Demand</h4>
+                    <h2>{avg_latent:.2f}</h2>
+                    <p class="small-text">Average estimated true customer demand.</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with r3:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <h4>⚠️ Avg. Demand Gap</h4>
+                    <h2>{avg_gap:.2f}</h2>
+                    <p class="small-text">Estimated hidden demand from stockouts.</p>
+                </div>
+                """, unsafe_allow_html=True)
 
             csv = df.to_csv(index=False).encode("utf-8")
+
             st.download_button(
-                "Download predictions as CSV",
+                "Download Forecast Results as CSV",
                 data=csv,
                 file_name="batch_predictions.csv",
                 mime="text/csv",
