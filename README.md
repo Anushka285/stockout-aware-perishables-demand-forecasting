@@ -20,6 +20,24 @@ https://stockout-aware-perishables-demand-forecasting.streamlit.app/
 
 ---
 
+# 📸 Application Preview
+
+## 🔮 Forecast Dashboard
+<img width="1126" height="913" alt="image" src="https://github.com/user-attachments/assets/e6bacbb4-643a-43bf-8aee-ccecf603a620" />
+
+## 📊 Model Performance Analytics
+<img width="1124" height="909" alt="image" src="https://github.com/user-attachments/assets/d487ecfe-216e-4913-8177-dc5f703fc642" />
+
+## 📈 Sales vs Predictions
+<img width="1126" height="905" alt="image" src="https://github.com/user-attachments/assets/5ee9d6d0-003d-484b-a3ab-d12e84284589" />
+
+## 📁 Batch Forecasting
+<img width="1915" height="1019" alt="image" src="https://github.com/user-attachments/assets/158ca238-d9c7-465c-8430-6cdf672ac265" />
+<img width="1902" height="908" alt="image" src="https://github.com/user-attachments/assets/8e54bd6b-baf6-40d2-b042-8393a64ffb34" />
+<img width="1900" height="903" alt="image" src="https://github.com/user-attachments/assets/b2b54210-4ab9-4f2b-9817-77e38ed68f6d" />
+
+---
+
 # 📌 Project Overview
 
 Perishable retail categories such as:
